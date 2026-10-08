@@ -23,6 +23,10 @@ An interactive calculator for the particle–fluid closures that couple the flui
 
 For a fixed bed, the Di Felice drag summed over all particles should balance ε times the Ergun pressure gradient, n·F = ε·(ΔP/L), with n = 6(1 − ε)/(πd³). The factor ε appears because the particles also carry the pressure-gradient (buoyancy) force, which accounts for the remaining (1 − ε) share of the pressure drop. The calculator reports how closely the two closures agree, which shows when a CFD-DEM code should switch drag model for dense beds.
 
+## AI evaluation
+
+[Testing ChatGPT on CFD-DEM closures](https://khuramwalayat.github.io/cfd-dem-closure-calculator/ai-eval/) puts three closure problems with physics traps to ChatGPT and grades the answers against reference values from this calculator. ChatGPT scored 16/18. It got every number right, but it compared the summed Di Felice drag with the full Ergun pressure gradient instead of ε times it, and put the factor-2.6 gap down to differences between correlations.
+
 ## Validation
 
 `test/closures.test.js` checks the physics core against:

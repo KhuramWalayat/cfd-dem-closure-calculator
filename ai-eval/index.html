@@ -1,0 +1,406 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Testing ChatGPT on CFD-DEM Closures</title>
+<meta name="description" content="Three particle–fluid closure problems with physics traps, put to ChatGPT and graded against tested reference answers. It scored 16/18: every number right, one key consistency check missed.">
+<meta name="author" content="Khuram Walayat">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Testing ChatGPT on CFD-DEM closures">
+<meta property="og:description" content="Three particle–fluid closure problems with physics traps, graded against tested reference answers. 16/18: every number right, one key consistency check missed.">
+<meta property="og:url" content="https://khuramwalayat.github.io/cfd-dem-closure-calculator/ai-eval/">
+<meta property="og:image" content="https://khuramwalayat.github.io/cfd-dem-closure-calculator/ai-eval/preview.png">
+<meta property="og:image:width" content="1920">
+<meta property="og:image:height" content="1200">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..800&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap">
+<style>
+/* Same tokens as the calculator page, so the two read as one site. Report layout: one reading column, tables and one figure. */
+:root {
+  color-scheme: light;
+  --paper: #f2f5f6;
+  --panel: #ffffff;
+  --ink: #13212b;
+  --muted: #566772;
+  --rule: #cbd6dc;
+  --grid: #e1e8ec;
+  --flow: #0b6f8f;
+  --flow-soft: #dcecf2;
+  --good: #2c7a4c;
+  --good-bg: #e2f1e8;
+  --warn: #9a5800;
+  --warn-bg: #f8ecd8;
+  --bad: #ad2a20;
+  --bad-bg: #f7e1de;
+  --c-drag: #0072a0;
+  --c-press: #b0700a;
+  --display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0e1418; --panel: #141c21; --ink: #e2eaef; --muted: #93a4ae; --rule: #2b3943; --grid: #1f2a31;
+    --flow: #5ab8d8; --flow-soft: #16313c;
+    --good: #72c895; --good-bg: #15291e; --warn: #e3a955; --warn-bg: #2e2312; --bad: #f08b80; --bad-bg: #331a17;
+    --c-drag: #2196c4; --c-press: #c27f22;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0e1418; --panel: #141c21; --ink: #e2eaef; --muted: #93a4ae; --rule: #2b3943; --grid: #1f2a31;
+  --flow: #5ab8d8; --flow-soft: #16313c;
+  --good: #72c895; --good-bg: #15291e; --warn: #e3a955; --warn-bg: #2e2312; --bad: #f08b80; --bad-bg: #331a17;
+  --c-drag: #2196c4; --c-press: #c27f22;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { background: var(--paper); color: var(--ink); font-family: var(--body); font-size: 16px; line-height: 1.55; }
+a { color: var(--flow); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--flow); outline-offset: 2px; }
+sub, sup { line-height: 0; }
+
+.wrap { max-width: 880px; margin: 0 auto; padding-inline: clamp(16px, 4vw, 40px); padding-block: 24px 56px; display: grid; gap: 40px; }
+.crumb { font-size: 14px; }
+header { display: grid; gap: 10px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--flow); }
+h1 { font-family: var(--display); font-stretch: 78%; font-weight: 750; font-size: clamp(32px, 6vw, 50px); line-height: 1.02; margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+.lede { margin: 0; max-width: 64ch; color: var(--muted); font-size: 17px; }
+h2 { font-family: var(--display); font-stretch: 85%; font-weight: 700; font-size: 24px; line-height: 1.15; margin: 0; }
+h3 { font-family: var(--mono); font-weight: 500; font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); margin: 0; }
+p { margin: 0; max-width: 68ch; }
+section { display: grid; gap: 16px; min-width: 0; }
+.prose { display: grid; gap: 12px; }
+.prose h3:not(:first-child) { margin-top: 10px; }
+.f { white-space: nowrap; }
+ul.plain { margin: 0; padding-left: 20px; display: grid; gap: 8px; max-width: 68ch; }
+
+.stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--rule); }
+.stat { display: grid; gap: 2px; padding: 12px 14px 12px 0; border-bottom: 1px solid var(--rule); min-width: 0; }
+.stat .k { font-size: 13px; color: var(--muted); }
+.stat .v { font: 500 30px/1.15 var(--mono); font-variant-numeric: tabular-nums; }
+.stat .sub { font-size: 13px; color: var(--muted); }
+@media (max-width: 560px) { .stats { grid-template-columns: minmax(0, 1fr); } .stat { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; column-gap: 12px; } .stat .v { grid-row: 1 / span 2; grid-column: 2; font-size: 26px; } }
+
+.sec-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.sec-head .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+.chip { display: inline-block; font: 500 12px/1 var(--body); padding: 5px 9px; border-radius: 999px; white-space: nowrap; }
+.chip.good { color: var(--good); background: var(--good-bg); }
+.chip.warn { color: var(--warn); background: var(--warn-bg); }
+.chip.bad { color: var(--bad); background: var(--bad-bg); }
+.score { font: 500 13px/1 var(--mono); padding: 6px 10px; }
+
+.tbl { width: 100%; border-collapse: collapse; font-size: 15px; }
+.tbl th { text-align: left; font: 500 12px/1.3 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); padding: 8px 12px 8px 0; border-bottom: 1px solid var(--rule); vertical-align: bottom; }
+.tbl td { padding: 10px 12px 10px 0; border-bottom: 1px solid var(--rule); vertical-align: top; overflow-wrap: anywhere; }
+.tbl td.n { font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums; }
+.tbl tr.total td { font-weight: 600; border-bottom: 0; }
+.tbl .chip { margin-top: 6px; }
+.tbl caption { caption-side: bottom; text-align: left; font-size: 13px; color: var(--muted); padding-top: 8px; }
+.results td:nth-child(2) { white-space: nowrap; }
+.tbl.cmp { table-layout: fixed; }
+.tbl.cmp th:first-child { width: 36%; }
+
+.prompt { background: var(--panel); border: 1px solid var(--rule); border-left: 3px solid var(--flow); border-radius: 6px; padding: 14px 16px; display: grid; gap: 10px; }
+.prompt blockquote { margin: 0; font-size: 15px; max-width: 72ch; }
+.prompt .tools { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; font-size: 14px; }
+.copy { font: 500 13px/1.2 var(--body); color: var(--ink); background: transparent; border: 1px solid var(--rule); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.copy:hover { border-color: var(--flow); }
+.trap { font-size: 15px; }
+.trap b { font-weight: 600; }
+
+.fig { position: relative; background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 18px 18px 14px; display: grid; gap: 14px; }
+.fig-title { font-weight: 600; font-size: 15px; }
+.bars { display: grid; gap: 16px; }
+.bar-row { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 4px 16px; align-items: end; }
+.bar-name { font-size: 13px; color: var(--muted); line-height: 1.35; padding-bottom: 2px; }
+.bar-name b { display: block; color: var(--ink); font: 500 14px/1.35 var(--body); }
+.plot { position: relative; display: grid; gap: 4px; }
+.labels { position: relative; height: 18px; font: 500 12px/18px var(--mono); font-variant-numeric: tabular-nums; color: var(--ink); }
+.labels span { position: absolute; top: 0; white-space: nowrap; }
+.track { position: relative; height: 24px; }
+.seg { position: absolute; top: 0; bottom: 0; cursor: default; }
+.seg.drag { background: var(--c-drag); }
+.seg.press { background: var(--c-press); border-radius: 0 4px 4px 0; }
+.seg.end { border-radius: 0 4px 4px 0; }
+.ref-line { position: absolute; top: -4px; bottom: -4px; width: 0; border-left: 2px dashed var(--ink); opacity: 0.75; pointer-events: none; }
+.axis { position: relative; height: 22px; border-top: 1px solid var(--rule); font: 400 11px/16px var(--mono); color: var(--muted); }
+.axis span { position: absolute; top: 6px; transform: translateX(-50%); white-space: nowrap; }
+.axis span::before { content: ""; position: absolute; left: 50%; top: -6px; height: 4px; border-left: 1px solid var(--rule); }
+.axis span:first-child { transform: none; }
+.axis span:first-child::before { left: 0; }
+.axis-row { display: grid; grid-template-columns: 168px minmax(0, 1fr); gap: 0 16px; }
+.legend-line { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 13px; color: var(--muted); }
+.legend-line i { display: inline-block; width: 11px; height: 11px; border-radius: 2px; margin-right: 6px; vertical-align: -1px; }
+.legend-line i.dash { width: 0; height: 13px; border-left: 2px dashed var(--ink); border-radius: 0; margin-right: 8px; vertical-align: -2px; }
+.fig figcaption { font-size: 14px; max-width: 72ch; }
+.tip { position: absolute; z-index: 2; pointer-events: none; background: var(--ink); color: var(--paper); font-size: 13px; line-height: 1.35; padding: 7px 9px; border-radius: 4px; max-width: 260px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18); }
+@media (max-width: 600px) {
+  .bar-row, .axis-row { grid-template-columns: minmax(0, 1fr); }
+  .axis-row > :first-child { display: none; }
+}
+
+.check { background: var(--panel); border: 1px solid var(--rule); border-radius: 6px; padding: 14px 16px; display: grid; gap: 8px; }
+.check p { font-size: 15px; }
+.check .eq { font-family: var(--mono); font-size: 14px; color: var(--muted); overflow-wrap: anywhere; }
+
+.refs { display: grid; gap: 10px; border-top: 1px solid var(--rule); padding-top: 20px; }
+.refs ol { margin: 0; padding-left: 20px; display: grid; gap: 4px; font-size: 13px; color: var(--muted); max-width: 90ch; }
+.refs p { font-size: 13px; color: var(--muted); max-width: 90ch; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <nav class="crumb" aria-label="Site"><a href="../">← CFD-DEM Closure Calculator</a></nav>
+
+  <header>
+    <div class="eyebrow">AI evaluation · particle–fluid closures · 8 October 2026</div>
+    <h1>Testing ChatGPT on CFD-DEM closures</h1>
+    <p class="lede">Three questions on drag, settling and bed heat transfer, each with a trap that catches anyone who knows the correlations but not the physics that links them. ChatGPT scored 16 out of 18. Every number it gave was right. On the question that tests whether two closures agree, it explained away a factor of 2.6 instead of finding the missing term.</p>
+  </header>
+
+  <div class="stats">
+    <div class="stat"><span class="k">Total score</span><span class="v">16/18</span><span class="sub">out of 6 per question</span></div>
+    <div class="stat"><span class="k">Numerical answers</span><span class="v">3/3</span><span class="sub">all within the reference range</span></div>
+    <div class="stat"><span class="k">Traps avoided</span><span class="v">3/4</span><span class="sub">missed the ε factor in Q1</span></div>
+  </div>
+
+  <section aria-labelledby="h-results">
+    <h2 id="h-results">Results</h2>
+    <table class="tbl results">
+      <thead><tr><th scope="col">Question</th><th scope="col">Score</th><th scope="col">Verdict</th></tr></thead>
+      <tbody>
+        <tr><td><a href="#q1">Q1 · Di Felice drag against Ergun pressure drop</a></td><td class="n">4/6</td><td>Numbers right, explanation wrong</td></tr>
+        <tr><td><a href="#q2">Q2 · Terminal velocity and hindered settling</a></td><td class="n">6/6</td><td>Avoided both traps</td></tr>
+        <tr><td><a href="#q3">Q3 · Heat transfer in a fixed bed</a></td><td class="n">6/6</td><td>Right correlation, right answer</td></tr>
+        <tr class="total"><td>Total</td><td class="n">16/18</td><td></td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section aria-labelledby="h-method">
+    <h2 id="h-method">How it was run</h2>
+    <ul class="plain">
+      <li>One new chat per question on chatgpt.com, 8 October 2026. Each prompt was pasted exactly as shown below, with no follow-up questions or hints. ChatGPT chose to search the web for Q1 and Q3.</li>
+      <li>Each question is scored out of 6: up to 2 for the numerical result, 2 for the method and choice of correlation, and 2 for the physical reasoning that the trap tests.</li>
+      <li>Reference values were computed with the physics core of the <a href="../">CFD-DEM Closure Calculator</a>, which is unit-tested against hand calculations and the Stokes and Newton limits, plus the Richardson–Zaki and Wakao–Kaguei correlations, which the calculator does not include.</li>
+      <li>The full chats are public: <a href="https://chatgpt.com/share/6ac7989b-ab04-83eb-be1d-7f3a98f47745" target="_blank" rel="noopener">Q1</a>, <a href="https://chatgpt.com/share/6ac79901-5354-83eb-98f5-9c4c29446de7" target="_blank" rel="noopener">Q2</a>, <a href="https://chatgpt.com/share/6ac799af-5d1c-83eb-bbdd-335ee716ce5c" target="_blank" rel="noopener">Q3</a>.</li>
+    </ul>
+  </section>
+
+  <section id="q1" aria-labelledby="h-q1">
+    <div class="sec-head">
+      <h2 id="h-q1">Q1 · Di Felice drag against Ergun pressure drop</h2>
+      <div class="meta"><span>Numbers 2 · Method 2 · Physics 0</span><span class="chip warn score">4/6</span></div>
+    </div>
+    <div class="prompt">
+      <blockquote id="p1">A fixed bed of 2 mm spheres has voidage 0.40. Air (density 1.1 kg/m³, viscosity 1.9×10⁻⁵ Pa·s) flows through it at a superficial velocity of 0.5 m/s. (a) Calculate the pressure gradient with the Ergun equation. (b) Calculate the drag force on one particle with the Di Felice (1994) model. (c) Sum the drag over all particles in 1 m³ of bed, compare it with your answer to (a), and explain any difference.</blockquote>
+      <div class="tools"><button type="button" class="copy" data-copy="p1">Copy prompt</button><a href="https://chatgpt.com/share/6ac7989b-ab04-83eb-be1d-7f3a98f47745" target="_blank" rel="noopener">Read ChatGPT's answer</a></div>
+    </div>
+    <p class="trap"><b>The trap.</b> Summed over the bed, the Di Felice drag comes to only 38.5% of the Ergun pressure gradient. The question is whether the model can explain why.</p>
+
+    <table class="tbl cmp">
+      <thead><tr><th scope="col">Quantity</th><th scope="col">ChatGPT</th><th scope="col">Reference</th></tr></thead>
+      <tbody>
+        <tr><td>Reynolds number, ρU<sub>s</sub>d/μ</td><td class="n">57.9</td><td class="n">57.9</td></tr>
+        <tr><td>Ergun ΔP/L, viscous + inertial</td><td class="n">2004 + 2256 = 4260 Pa/m</td><td class="n">2004 + 2256 = 4260 Pa/m</td></tr>
+        <tr><td>Dallavalle C<sub>d</sub></td><td class="n">1.590</td><td class="n">1.590</td></tr>
+        <tr><td>Di Felice exponent χ</td><td class="n">3.072</td><td class="n">3.072</td></tr>
+        <tr><td>Drag on one particle, F</td><td class="n">1.15 × 10⁻⁵ N</td><td class="n">1.146 × 10⁻⁵ N</td></tr>
+        <tr><td>Particles per m³, n</td><td class="n">1.432 × 10⁸</td><td class="n">1.432 × 10⁸</td></tr>
+        <tr><td>Summed drag, n·F</td><td class="n">1642 Pa/m</td><td class="n">1642 Pa/m</td></tr>
+        <tr><td>Compared against</td><td class="n">ΔP/L = 4260 Pa/m<br>ratio 0.385<br><span class="chip bad">Wrong basis</span></td><td class="n">ε·ΔP/L = 1704 Pa/m<br>difference −3.6%<br><span class="chip good">Consistent</span></td></tr>
+      </tbody>
+    </table>
+
+    <figure class="fig" id="fig1" style="margin:0">
+      <div class="fig-title">Where the Ergun pressure gradient goes in a fixed bed</div>
+      <div class="bars" role="img" aria-label="Bar chart. The Ergun pressure gradient of 4260 pascals per metre splits into a drag share of 1704 and a pressure-gradient share of 2556. The summed Di Felice drag is 1642, which nearly matches the drag share.">
+        <div class="bar-row">
+          <div class="bar-name"><b>Ergun ΔP/L</b>4260 Pa/m</div>
+          <div class="plot">
+            <div class="labels" aria-hidden="true"><span style="left:0">ε·ΔP/L = 1704</span><span style="left:calc(37.867% + 6px)">(1 − ε)·ΔP/L = 2556</span></div>
+            <div class="track">
+              <div class="seg drag" style="left:0;width:37.867%" tabindex="0" data-tip="Drag share, ε·ΔP/L: 1704 Pa/m (40% of the Ergun gradient)"></div>
+              <div class="seg press" style="left:calc(37.867% + 2px);width:calc(56.800% - 2px)" tabindex="0" data-tip="Pressure-gradient force on the particles, (1 − ε)·ΔP/L: 2556 Pa/m (60%)"></div>
+              <div class="ref-line" style="left:calc(37.867% - 1px)"></div>
+            </div>
+          </div>
+        </div>
+        <div class="bar-row">
+          <div class="bar-name"><b>Di Felice drag, n·F</b>1642 Pa/m</div>
+          <div class="plot">
+            <div class="labels" aria-hidden="true"><span style="left:0">n·F = 1642</span></div>
+            <div class="track">
+              <div class="seg drag end" style="left:0;width:36.489%" tabindex="0" data-tip="Summed Di Felice drag, n·F: 1642 Pa/m, 3.6% below ε·ΔP/L"></div>
+              <div class="ref-line" style="left:calc(37.867% - 1px)"></div>
+            </div>
+          </div>
+        </div>
+        <div class="axis-row" aria-hidden="true">
+          <div></div>
+          <div class="axis"><span style="left:0">0</span><span style="left:22.222%">1000</span><span style="left:44.444%">2000</span><span style="left:66.667%">3000</span><span style="left:88.889%">4000 Pa/m</span></div>
+        </div>
+      </div>
+      <div class="legend-line">
+        <span><i style="background: var(--c-drag)"></i>Drag</span>
+        <span><i style="background: var(--c-press)"></i>Pressure-gradient force on the particles</span>
+        <span><i class="dash"></i>ε·ΔP/L = 1704 Pa/m</span>
+      </div>
+      <figcaption>ChatGPT compared the lower bar with the whole of the upper bar and got a ratio of 0.385. The right comparison is with the drag share alone: 1642 against 1704 Pa/m, 3.6% apart.</figcaption>
+      <div class="tip" role="tooltip" hidden></div>
+    </figure>
+
+    <div class="prose">
+      <h3>What ChatGPT concluded</h3>
+      <p>It said “the discrepancy is primarily due to the different empirical closures”, adding that Ergun and Di Felice were fitted independently and need not agree. As a second reason, it suggested that some codes write Di Felice with the interstitial slip velocity and extra powers of ε, so mixing velocity definitions could change the force. Neither reason holds.</p>
+      <h3>What is actually going on</h3>
+      <p>Drag is only part of the force the fluid exerts on the particles. In the averaged equations that CFD-DEM codes widely use (Anderson and Jackson, 1967), each particle also feels the pressure-gradient force <span class="f">−V<sub>p</sub>∇p</span>. In a fixed bed, the fluid momentum balance then gives <span class="f">n·F<sub>drag</sub> = ε·ΔP/L</span>, and the pressure-gradient force carries the other <span class="f">(1 − ε)·ΔP/L</span>. Against <span class="f">ε·ΔP/L = 1704 Pa/m</span>, the summed Di Felice drag is 3.6% low, which is close agreement for two independent correlations.</p>
+      <p>The velocity argument does not apply either. The standard form is <span class="f">F = ½C<sub>d</sub>ρ(πd²/4)ε²|u − v|²ε<sup>−χ</sup></span>. With the particles at rest, <span class="f">ε|u − v| = U<sub>s</sub></span>, so the interstitial and superficial forms give the same force.</p>
+    </div>
+
+    <div class="check">
+      <h3>Why Di Felice drag leaves out the pressure-gradient force</h3>
+      <p>In a uniform suspension at equilibrium, the same force split gives <span class="f">F<sub>drag</sub> = ε ×</span> the buoyant weight of one particle. Combined with the Richardson–Zaki law, <span class="f">U = v<sub>t</sub>ε<sup>n</sup></span>, that requires <span class="f">χ = n − 1 = 3.65</span> in the viscous limit <span class="f">(n = 4.65)</span> and <span class="f">χ = 2n − 1 = 3.78</span> in the inertial limit <span class="f">(n = 2.39)</span>. Di Felice's χ tends to 3.7 at both ends. If his drag were the whole fluid force minus ordinary buoyancy, χ would have to be about 4.7 in both limits.</p>
+      <p class="eq">n·F<sub>drag</sub> = ε·(ΔP/L)<sub>Ergun</sub>, with n = 6(1 − ε)/(πd³)</p>
+    </div>
+
+    <div class="prose">
+      <h3>Why it matters</h3>
+      <p>A modeller who accepted ChatGPT's explanation and scaled the drag up to match Ergun would count the pressure-gradient force twice. The coupled model would then predict that the bed fluidises at too low a gas velocity. The <a href="../">calculator</a> runs this cross-check live for any bed.</p>
+    </div>
+  </section>
+
+  <section id="q2" aria-labelledby="h-q2">
+    <div class="sec-head">
+      <h2 id="h-q2">Q2 · Terminal velocity and hindered settling</h2>
+      <div class="meta"><span>Numbers 2 · Method 2 · Physics 2</span><span class="chip good score">6/6</span></div>
+    </div>
+    <div class="prompt">
+      <blockquote id="p2">Glass beads (diameter 0.5 mm, density 2500 kg/m³) settle in water (density 998 kg/m³, viscosity 1.0×10⁻³ Pa·s). (a) Find the terminal velocity of a single bead. (b) Estimate the settling velocity of a suspension with solids volume fraction 0.40 using Richardson–Zaki. Show your working.</blockquote>
+      <div class="tools"><button type="button" class="copy" data-copy="p2">Copy prompt</button><a href="https://chatgpt.com/share/6ac79901-5354-83eb-98f5-9c4c29446de7" target="_blank" rel="noopener">Read ChatGPT's answer</a></div>
+    </div>
+    <p class="trap"><b>The traps.</b> Stopping at the Stokes result, 0.205 m/s, which gives <span class="f">Re = 102</span>, far outside Stokes flow. And using the creeping-flow exponent <span class="f">n = 4.65</span>, which gives 0.0068 m/s, less than half the right value.</p>
+    <table class="tbl cmp">
+      <thead><tr><th scope="col">Quantity</th><th scope="col">ChatGPT</th><th scope="col">Reference</th></tr></thead>
+      <tbody>
+        <tr><td>Drag law</td><td>Schiller–Naumann, iterated</td><td>Schiller–Naumann, iterated</td></tr>
+        <tr><td>Terminal Reynolds number</td><td class="n">36.7</td><td class="n">36.7</td></tr>
+        <tr><td>C<sub>d</sub> at terminal velocity</td><td class="n">1.82</td><td class="n">1.82</td></tr>
+        <tr><td>Terminal velocity, v<sub>t</sub></td><td class="n">0.0736 m/s</td><td class="n">0.0735 m/s</td></tr>
+        <tr><td>Richardson–Zaki exponent, n</td><td class="n">3.07<br>(4.4 Re<sup>−0.1</sup>)</td><td class="n">3.00 to 3.10<br>(Rowe; 4.45 Re<sup>−0.1</sup>)</td></tr>
+        <tr><td>Suspension velocity at ε = 0.60</td><td class="n">0.0153 m/s</td><td class="n">0.0151 to 0.0159 m/s</td></tr>
+      </tbody>
+    </table>
+    <div class="prose">
+      <p>It avoided both traps: it went straight to an iterated Schiller–Naumann solution and used an exponent that depends on the Reynolds number. Two small points, with no marks lost. It used the rounded constant 4.4 that some textbooks quote, where Richardson and Zaki give 4.45, which moves the answer by about 2%. And it reported the converged iteration without the intermediate steps, although the prompt asked for working.</p>
+    </div>
+  </section>
+
+  <section id="q3" aria-labelledby="h-q3">
+    <div class="sec-head">
+      <h2 id="h-q3">Q3 · Heat transfer in a fixed bed</h2>
+      <div class="meta"><span>Numbers 2 · Method 2 · Physics 2</span><span class="chip good score">6/6</span></div>
+    </div>
+    <div class="prompt">
+      <blockquote id="p3">A fixed bed of 2 mm spheres has voidage 0.40. Air (density 1.1 kg/m³, viscosity 1.9×10⁻⁵ Pa·s, thermal conductivity 0.028 W/(m·K), heat capacity 1007 J/(kg·K)) flows through it at a superficial velocity of 0.5 m/s. Estimate the particle-to-fluid heat transfer coefficient and justify your choice of correlation.</blockquote>
+      <div class="tools"><button type="button" class="copy" data-copy="p3">Copy prompt</button><a href="https://chatgpt.com/share/6ac799af-5d1c-83eb-bbdd-335ee716ce5c" target="_blank" rel="noopener">Read ChatGPT's answer</a></div>
+    </div>
+    <p class="trap"><b>The trap.</b> Using the single-sphere Ranz–Marshall correlation, which ignores the bed: <span class="f">Nu = 6.0</span> and <span class="f">h = 84 W/(m²·K)</span>, a factor of 2 to 3 too low.</p>
+    <table class="tbl cmp">
+      <thead><tr><th scope="col">Quantity</th><th scope="col">ChatGPT</th><th scope="col">Reference</th></tr></thead>
+      <tbody>
+        <tr><td>Re (superficial), Pr</td><td class="n">57.9, 0.683</td><td class="n">57.9, 0.683</td></tr>
+        <tr><td>Correlation</td><td>Wakao–Kaguei</td><td>Wakao–Kaguei or Gunn</td></tr>
+        <tr><td>Nusselt number</td><td class="n">13.07</td><td class="n">13.1 (Wakao–Kaguei)<br>17.6 (Gunn)</td></tr>
+        <tr><td>Heat transfer coefficient, h</td><td class="n">183 W/(m²·K)</td><td class="n">183 to 246 W/(m²·K)</td></tr>
+      </tbody>
+    </table>
+    <div class="prose">
+      <p>It chose a packed-bed correlation, rejected Ranz–Marshall for the right reason, checked the Reynolds number against the correlation's range and noted that <span class="f">Pr = 0.683</span> sits just below the usual lower limit of 0.7. It named Gunn (1978) as the alternative when voidage matters but did not evaluate it. Gunn gives <span class="f">246 W/(m²·K)</span>, about a third higher, and that spread is the real uncertainty in this estimate.</p>
+    </div>
+  </section>
+
+  <section aria-labelledby="h-takeaway">
+    <h2 id="h-takeaway">What this shows</h2>
+    <div class="prose">
+      <p>ChatGPT is dependable on the arithmetic and on choosing a standard correlation for a stated case. It slipped at the step a CFD-DEM modeller takes by habit: checking that two closures used together respect the momentum balance. Faced with a factor of 2.6, it put the gap down to differences between correlations instead of looking for a missing term. Questions where the numbers look right and the physics is wrong are the ones worth writing for model evaluation.</p>
+      <p>Limits: one run per question, one model, one day. The questions are now public, so treat them as worked examples rather than a held-out test.</p>
+    </div>
+  </section>
+
+  <section class="refs" aria-labelledby="h-refs">
+    <h3 id="h-refs">References</h3>
+    <ol>
+      <li>Anderson, T. B. &amp; Jackson, R. (1967). Fluid mechanical description of fluidized beds: equations of motion. Ind. Eng. Chem. Fundam. 6, 527–539.</li>
+      <li>Dallavalle, J. M. (1948). Micromeritics. Pitman, New York.</li>
+      <li>Di Felice, R. (1994). The voidage function for fluid–particle interaction systems. Int. J. Multiphase Flow 20, 153–159.</li>
+      <li>Ergun, S. (1952). Fluid flow through packed columns. Chem. Eng. Prog. 48, 89–94.</li>
+      <li>Gunn, D. J. (1978). Transfer of heat or mass to particles in fixed and fluidised beds. Int. J. Heat Mass Transfer 21, 467–476.</li>
+      <li>Ranz, W. E. &amp; Marshall, W. R. (1952). Evaporation from drops. Chem. Eng. Prog. 48, 141–146 and 173–180.</li>
+      <li>Richardson, J. F. &amp; Zaki, W. N. (1954). Sedimentation and fluidisation: Part I. Trans. Inst. Chem. Eng. 32, 35–53.</li>
+      <li>Rowe, P. N. (1987). A convenient empirical equation for estimation of the Richardson–Zaki exponent. Chem. Eng. Sci. 42, 2795–2796.</li>
+      <li>Schiller, L. &amp; Naumann, A. (1933). Z. Ver. Dtsch. Ing. 77, 318–320.</li>
+      <li>Wakao, N. &amp; Kaguei, S. (1982). Heat and Mass Transfer in Packed Beds. Gordon and Breach, New York.</li>
+    </ol>
+    <p>Questions, reference answers and grading by Khuram Walayat, PhD (CFD-DEM, heat and mass transfer), with AI assistance (Claude) for drafting and arithmetic checks. <a href="https://github.com/KhuramWalayat/cfd-dem-closure-calculator" target="_blank" rel="noopener">Source</a> · <a href="https://scholar.google.com/citations?user=ARLxTI4AAAAJ" target="_blank" rel="noopener">Google Scholar</a></p>
+  </section>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  // Copy-prompt buttons
+  Array.prototype.forEach.call(document.querySelectorAll(".copy"), function (btn) {
+    btn.addEventListener("click", function () {
+      var src = document.getElementById(btn.getAttribute("data-copy"));
+      var text = src ? src.textContent.trim() : "";
+      function done(ok) {
+        btn.textContent = ok ? "Copied" : "Select and copy";
+        setTimeout(function () { btn.textContent = "Copy prompt"; }, 1800);
+      }
+      try {
+        navigator.clipboard.writeText(text).then(function () { done(true); }, function () { done(false); });
+      } catch (e) {
+        try {
+          var range = document.createRange(); range.selectNodeContents(src);
+          var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(range);
+        } catch (e2) {}
+        done(false);
+      }
+    });
+  });
+
+  // Hover and focus tooltip for the figure
+  var fig = document.getElementById("fig1");
+  if (!fig) return;
+  var tip = fig.querySelector(".tip");
+  function show(seg, x, y) {
+    tip.textContent = seg.getAttribute("data-tip");
+    tip.hidden = false;
+    var box = fig.getBoundingClientRect();
+    var w = tip.offsetWidth, h = tip.offsetHeight;
+    var left = Math.min(Math.max(8, x - box.left - w / 2), box.width - w - 8);
+    var top = y - box.top - h - 12;
+    if (top < 4) top = y - box.top + 16;
+    tip.style.left = left + "px";
+    tip.style.top = top + "px";
+  }
+  function hide() { tip.hidden = true; }
+  Array.prototype.forEach.call(fig.querySelectorAll(".seg"), function (seg) {
+    seg.addEventListener("pointermove", function (e) { show(seg, e.clientX, e.clientY); });
+    seg.addEventListener("pointerleave", hide);
+    seg.addEventListener("focus", function () {
+      var r = seg.getBoundingClientRect();
+      show(seg, r.left + r.width / 2, r.top);
+    });
+    seg.addEventListener("blur", hide);
+  });
+})();
+</script>
+</body>
+</html>
