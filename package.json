@@ -1,0 +1,11 @@
+{
+  "name": "cfd-dem-closure-calculator",
+  "version": "1.0.0",
+  "description": "Interactive particle-fluid closures for CFD-DEM: drag, settling, bed pressure drop and heat transfer.",
+  "main": "closures.js",
+  "scripts": {
+    "test": "node --test"
+  },
+  "author": "Khuram Walayat",
+  "license": "MIT"
+}
